@@ -28,8 +28,6 @@ export default function InventoryPage() {
       return
     }
 
-    setLoading(true)
-
     const countRes = await supabase
       .from('items')
       .select('*', { count: 'exact', head: true })
@@ -43,26 +41,18 @@ export default function InventoryPage() {
       .order('storage_unit')
 
     if (itemsRes.data && itemsRes.data.length > 0) {
-      const itemIds = itemsRes.data.map((i) => i.id)
       const logsRes = await supabase
         .from('found_logs')
         .select('id,item_id,found_by_name,created_at')
-        .in('item_id', itemIds)
+        .eq('dataset_id', datasetId)
+        .is('reverted_at', null)
+        .not('item_id', 'is', null)
       const logMap = new Map(logsRes.data?.map((l) => [l.item_id, l]) ?? [])
 
       const merged: ItemWithStatus[] = itemsRes.data.map((item) => {
         const log = logMap.get(item.id)
         return {
-          id: item.id,
-          dataset_id: item.dataset_id,
-          storage_unit: item.storage_unit,
-          storage_bin: item.storage_bin,
-          storage_type: item.storage_type,
-          material_no: item.material_no,
-          material_description: item.material_description,
-          batch: item.batch,
-          quantity: item.quantity,
-          unit_of_quantity: item.unit_of_quantity,
+          ...item,
           found_by_name: log?.found_by_name ?? null,
           found_at: log?.created_at ?? null,
           found_log_id: log?.id ?? null,
@@ -96,16 +86,19 @@ export default function InventoryPage() {
     setTogglingId(item.id)
 
     if (item.found_at) {
-      // Uncheck — revert
+      // Optimistic uncheck
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, found_by_name: null, found_at: null, found_log_id: null } : i)))
+      setTogglingId(null)
       if (item.found_log_id) {
         await revertFoundLog(item.found_log_id)
       } else {
-        // Fallback: delete by item_id
         await supabase.from('found_logs').delete().eq('item_id', item.id)
       }
     } else {
-      // Check — mark as found
-      const payload = {
+      // Optimistic check
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, found_by_name: user.display_name, found_at: new Date().toISOString() } : i)))
+      setTogglingId(null)
+      await offlineInsert('found_logs', {
         item_id: item.id,
         dataset_id: datasetId,
         found_by: user.id,
@@ -116,11 +109,10 @@ export default function InventoryPage() {
         storage_bin: item.storage_bin,
         batch: item.batch,
         is_manual: false,
-      }
-      await offlineInsert('found_logs', payload)
+      })
     }
 
-    setTogglingId(null)
+    // Sync with server in background (real-time also triggers a refresh)
     loadItems()
   }
 
@@ -167,11 +159,12 @@ export default function InventoryPage() {
         )
         .limit(200)
       if (itemsData) {
-        const itemIds = itemsData.map((i) => i.id)
         const { data: logsData } = await supabase
           .from('found_logs')
           .select('id,item_id,found_by_name,created_at')
-          .in('item_id', itemIds)
+          .eq('dataset_id', datasetId)
+          .is('reverted_at', null)
+          .not('item_id', 'is', null)
         const logMap = new Map(logsData?.map((l) => [l.item_id, l]) ?? [])
         const merged: ItemWithStatus[] = itemsData.map((item) => {
           const log = logMap.get(item.id)

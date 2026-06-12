@@ -239,12 +239,12 @@ const SSCCInput = forwardRef<SSCCInputHandle, Props>(({ onResult, keyboardActive
     // Check for existing item (handles revert + re-input)
     const { data: existingItems } = await supabase
       .from('items')
-      .select('id,storage_unit,material_no,material_description,storage_bin,batch')
+      .select('*')
       .eq('dataset_id', activeDataset.id)
       .eq('storage_unit', manual.storage_unit.trim())
       .limit(1)
 
-    let item: { id: string, storage_unit: string, material_no: string, material_description: string | null, storage_bin: string | null, batch: string | null }
+    let item: Item
 
     if (existingItems && existingItems.length > 0) {
       item = existingItems[0]

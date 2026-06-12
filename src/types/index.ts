@@ -32,7 +32,7 @@ export interface Item {
 
 export interface FoundLog {
   id: string
-  item_id: string
+  item_id: string | null
   dataset_id: string
   found_by: string
   found_by_name: string

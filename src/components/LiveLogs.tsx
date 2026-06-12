@@ -111,7 +111,7 @@ export default function LiveLogs({ onRevert }: Props) {
         <span className="text-[10px] text-muted">{recentLogs.length} events</span>
       </div>
 
-      <div className="space-y-1 max-h-[400px] overflow-y-auto" ref={logsEndRef}>
+      <div className="space-y-1 overflow-y-auto" ref={logsEndRef}>
         <AnimatePresence mode="popLayout">
           {recentLogs.length === 0 ? (
             <div className="text-xs text-muted italic py-4 text-center">

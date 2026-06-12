@@ -8,58 +8,41 @@ import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
 import type { ItemWithStatus } from '../types'
 
-const PAGE_SIZE = 100
-
 export default function InventoryPage() {
   const [items, setItems] = useState<ItemWithStatus[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [searchResults, setSearchResults] = useState<ItemWithStatus[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'found' | 'pending'>('all')
-  const loadedPageRef = useRef(0)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const user = useAuthStore((s) => s.user)
   const activeDataset = useAppStore((s) => s.activeDataset)
   const datasetId = activeDataset?.id
 
-  const loadItems = useCallback(async (reset: boolean) => {
+  const loadItems = useCallback(async () => {
     if (!datasetId) {
       setLoading(false)
       return
     }
 
-    if (reset) {
-      setLoading(true)
-      loadedPageRef.current = 0
-    } else {
-      setLoadingMore(true)
-    }
+    setLoading(true)
 
-    const offset = reset ? 0 : (loadedPageRef.current) * PAGE_SIZE
-
-    // Count all items
     const countRes = await supabase
       .from('items')
       .select('*', { count: 'exact', head: true })
       .eq('dataset_id', datasetId)
     if (countRes.count !== null) setTotalCount(countRes.count)
 
-    // Fetch current page of items
     const itemsRes = await supabase
       .from('items')
       .select('id,dataset_id,storage_unit,storage_bin,storage_type,material_no,material_description,batch,quantity,unit_of_quantity')
       .eq('dataset_id', datasetId)
       .order('storage_unit')
-      .range(offset, offset + PAGE_SIZE - 1)
 
     if (itemsRes.data && itemsRes.data.length > 0) {
-      loadedPageRef.current += 1
-      // Fetch found_logs for this page's item_ids
       const itemIds = itemsRes.data.map((i) => i.id)
       const logsRes = await supabase
         .from('found_logs')
@@ -86,29 +69,24 @@ export default function InventoryPage() {
         }
       })
 
-      if (reset) setItems(merged)
-      else setItems((prev) => [...prev, ...merged])
-      setHasMore(offset + itemsRes.data.length < (countRes.count ?? 0))
+      setItems(merged)
     } else {
-      if (reset) setItems([])
+      setItems([])
     }
     setLoading(false)
-    setLoadingMore(false)
   }, [datasetId])
 
   useEffect(() => {
-    setHasMore(true)
-    loadedPageRef.current = 0
-    loadItems(true)
+    loadItems()
   }, [loadItems])
 
   // Real-time: when a found_log is inserted/deleted/updated, reload
   useEffect(() => {
     const channel = supabase
       .channel('inventory-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'found_logs', filter: `dataset_id=eq.${datasetId}` }, () => loadItems(true))
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'found_logs' }, () => loadItems(true))
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'found_logs' }, () => loadItems(true))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'found_logs', filter: `dataset_id=eq.${datasetId}` }, () => loadItems())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'found_logs' }, () => loadItems())
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'found_logs' }, () => loadItems())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [datasetId, loadItems])
@@ -143,7 +121,7 @@ export default function InventoryPage() {
     }
 
     setTogglingId(null)
-    loadItems(true)
+    loadItems()
   }
 
   function handleExport() {
@@ -451,23 +429,7 @@ export default function InventoryPage() {
               </motion.div>
             )
           })}
-          {/* Load more */}
-          {hasMore && !query && searchResults === null && (
-            <button
-              onPointerDown={() => loadItems(false)}
-              disabled={loadingMore}
-              className="w-full py-3 rounded-2xl bg-surface-light border border-border text-xs text-muted hover:text-white hover:border-accent/30 transition-colors font-medium disabled:opacity-50"
-            >
-              {loadingMore ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                  Loading...
-                </span>
-              ) : (
-                `Load more (${totalCount - items.length} remaining)`
-              )}
-            </button>
-          )}
+
         </div>
       ) : null}
     </div>

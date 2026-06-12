@@ -202,9 +202,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
-        {/* Connection indicator */}
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Status bars - shrink to fit */}
+      <div className="shrink-0 px-3 pt-3 space-y-2">
         {!online && (
           <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-warning/15 border border-warning/30 text-xs">
             <span className="text-warning font-medium">Offline — changes queued locally</span>
@@ -216,8 +216,6 @@ export default function DashboardPage() {
             <span className="text-positive font-medium">Syncing {pendingCount} queued changes...</span>
           </div>
         )}
-
-        {/* Dataset selector */}
         {datasets.length > 1 && (
           <div className="flex gap-1 overflow-x-auto pb-1">
             {datasets.map((ds) => (
@@ -235,33 +233,38 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+      </div>
 
-        {/* Input section */}
-        <div className="bg-surface-light rounded-2xl p-4 border border-border">
+      {/* Main grid: [SSCC auto] [Stats+Logs 1fr] [Keyboard auto] */}
+      <div className="flex-1 grid grid-rows-[auto_1fr_auto] gap-3 p-3 min-h-0 overflow-hidden">
+        {/* Row 1: SSCC Input */}
+        <div className="shrink-0 bg-surface-light rounded-2xl p-4 border border-border">
           <SSCCInput ref={inputRef} onResult={handleResult} keyboardActive={showKeyboard} />
         </div>
 
-        {/* Stats + Logs grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="bg-surface-light rounded-2xl p-3 border border-border">
+        {/* Row 2: Stats + LiveLogs side by side */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-h-0 overflow-hidden">
+          <div className="bg-surface-light rounded-2xl border border-border overflow-y-auto p-3">
             <StatsPanel />
           </div>
-          <div className="bg-surface-light rounded-2xl p-3 border border-border">
-            <LiveLogs onRevert={() => setRevertToast(true)} />
+          <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
+            <div className="bg-surface-light rounded-2xl border border-border flex-1 overflow-y-auto p-3 min-h-0">
+              <LiveLogs onRevert={() => setRevertToast(true)} />
+            </div>
           </div>
         </div>
 
-        {/* FoundItemPanel + T9Keyboard side by side */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        {/* Row 3: FoundItemPanel + T9Keyboard */}
+        <div className="shrink-0 flex gap-3 min-h-0">
           <div className="flex-1">
             <FoundItemPanel item={lastFoundItem} foundByName={lastFoundByName} />
           </div>
           <AnimatePresence>
             {showKeyboard && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
                 className="sm:w-1/2 overflow-hidden"
               >
                 <T9Keyboard
@@ -275,7 +278,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Bottom bar: toggle only */}
+      {/* Bottom bar */}
       <div className="shrink-0 border-t border-border bg-surface flex justify-center px-3 py-2">
         <button
           onPointerDown={() => setShowKeyboard(!showKeyboard)}
@@ -297,14 +300,14 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* Floating result toast */}
+      {/* Floating toasts - use fixed positioning to avoid overflow clipping */}
       <AnimatePresence>
         {inputResult && inputResult.status === 'found' && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className="absolute bottom-20 left-4 right-4 z-50"
+            className="fixed bottom-20 left-4 right-4 z-50"
           >
             <div className="bg-positive/90 backdrop-blur text-white rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3 animate-glow">
               <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -321,14 +324,13 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
-      {/* Revert toast */}
       <AnimatePresence>
         {revertToast && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className="absolute bottom-20 left-4 right-4 z-50"
+            className="fixed bottom-20 left-4 right-4 z-50"
           >
             <div className="bg-negative/90 backdrop-blur text-white rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3 animate-glow">
               <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">

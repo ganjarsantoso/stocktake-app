@@ -13,7 +13,6 @@ import FoundItemPanel from '../components/FoundItemPanel'
 import type { Item, SearchResult } from '../types'
 
 export default function DashboardPage() {
-  const [showKeyboard, setShowKeyboard] = useState(true)
   const [inputResult, setInputResult] = useState<SearchResult | null>(null)
   const [lastFoundItem, setLastFoundItem] = useState<Item | null>(null)
   const [lastFoundByName, setLastFoundByName] = useState<string | undefined>(undefined)
@@ -179,11 +178,6 @@ export default function DashboardPage() {
     return () => clearTimeout(t)
   }, [revertToast])
 
-  // Keep keyboard state synced with store
-  useEffect(() => {
-    setShowKeyboard(keyboardVisible)
-  }, [keyboardVisible])
-
   if (!activeDataset) {
     return (
       <div className="flex items-center justify-center h-full p-6">
@@ -239,7 +233,7 @@ export default function DashboardPage() {
       <div className="flex-1 grid grid-rows-[auto_1fr_auto] gap-3 p-3 min-h-0 overflow-hidden">
         {/* Row 1: SSCC Input */}
         <div className="shrink-0 bg-surface-light rounded-2xl p-4 border border-border">
-          <SSCCInput ref={inputRef} onResult={handleResult} keyboardActive={showKeyboard} />
+          <SSCCInput ref={inputRef} onResult={handleResult} keyboardActive={keyboardVisible} />
         </div>
 
         {/* Row 2: Stats + LiveLogs side by side */}
@@ -260,7 +254,7 @@ export default function DashboardPage() {
             <FoundItemPanel item={lastFoundItem} foundByName={lastFoundByName} />
           </div>
           <AnimatePresence>
-            {showKeyboard && (
+            {keyboardVisible && (
               <motion.div
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
@@ -276,28 +270,6 @@ export default function DashboardPage() {
             )}
           </AnimatePresence>
         </div>
-      </div>
-
-      {/* Bottom bar */}
-      <div className="shrink-0 border-t border-border bg-surface flex justify-center px-3 py-2">
-        <button
-          onPointerDown={() => setShowKeyboard(!showKeyboard)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-lighter text-xs text-muted active:bg-accent/20 transition-colors"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-            <rect x="2" y="4" width="20" height="16" rx="2" />
-            <line x1="6" y1="8" x2="6.01" y2="8" />
-            <line x1="10" y1="8" x2="10.01" y2="8" />
-            <line x1="14" y1="8" x2="14.01" y2="8" />
-            <line x1="18" y1="8" x2="18.01" y2="8" />
-            <line x1="6" y1="12" x2="6.01" y2="12" />
-            <line x1="10" y1="12" x2="10.01" y2="12" />
-            <line x1="14" y1="12" x2="14.01" y2="12" />
-            <line x1="18" y1="12" x2="18.01" y2="12" />
-            <line x1="6" y1="16" x2="18" y2="16" />
-          </svg>
-          {showKeyboard ? 'Hide Keyboard' : 'Show Keyboard'}
-        </button>
       </div>
 
       {/* Floating toasts - use fixed positioning to avoid overflow clipping */}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
+import { useThemeStore } from '../stores/themeStore'
 
 const navItems = [
   {
@@ -68,7 +69,10 @@ export default function Layout() {
   })
   const user = useAuthStore((s) => s.user)
   const activeDataset = useAppStore((s) => s.activeDataset)
+  const keyboardVisible = useThemeStore((s) => s.keyboardVisible)
+  const setKeyboardVisible = useThemeStore((s) => s.setKeyboardVisible)
   const location = useLocation()
+  const isDashboard = location.pathname === '/'
 
   const toggleCollapse = () => {
     setSidebarCollapsed((prev: boolean) => {
@@ -200,7 +204,27 @@ export default function Layout() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {isDashboard && (
+              <button
+                onPointerDown={() => setKeyboardVisible(!keyboardVisible)}
+                className="p-1.5 rounded-lg text-muted hover:text-white hover:bg-surface-lighter transition-colors active:bg-accent/20"
+                title={keyboardVisible ? 'Hide keyboard' : 'Show keyboard'}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <line x1="6" y1="8" x2="6.01" y2="8" />
+                  <line x1="10" y1="8" x2="10.01" y2="8" />
+                  <line x1="14" y1="8" x2="14.01" y2="8" />
+                  <line x1="18" y1="8" x2="18.01" y2="8" />
+                  <line x1="6" y1="12" x2="6.01" y2="12" />
+                  <line x1="10" y1="12" x2="10.01" y2="12" />
+                  <line x1="14" y1="12" x2="14.01" y2="12" />
+                  <line x1="18" y1="12" x2="18.01" y2="12" />
+                  <line x1="6" y1="16" x2="18" y2="16" />
+                </svg>
+              </button>
+            )}
             <span className="text-[11px] text-muted hidden sm:inline">
               {activeDataset?.name || 'No dataset'}
             </span>

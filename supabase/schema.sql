@@ -140,9 +140,9 @@ AS $$
 BEGIN
   UPDATE found_logs
   SET reverted_at = now(), item_id = NULL
-  WHERE id = log_id;
+  WHERE id = log_id AND found_by = auth.uid();
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'found_log not found: %', log_id;
+    RAISE EXCEPTION 'found_log not found or not owned by you: %', log_id;
   END IF;
 END;
 $$;

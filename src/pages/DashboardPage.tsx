@@ -249,26 +249,17 @@ export default function DashboardPage() {
         </div>
 
         {/* Row 3: FoundItemPanel + T9Keyboard */}
-        <div className="shrink-0 flex gap-3 min-h-0">
-          <div className="flex-1">
+        <div className="shrink-0 flex gap-3">
+          <div className={keyboardVisible ? 'w-1/2' : 'w-full'}>
             <FoundItemPanel item={lastFoundItem} foundByName={lastFoundByName} />
           </div>
-          <AnimatePresence>
-            {keyboardVisible && (
-              <motion.div
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                className="sm:w-1/2 overflow-hidden"
-              >
-                <T9Keyboard
-                  onDigit={handleDigit}
-                  onBackspace={handleBackspace}
-                  onClear={handleClear}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className={keyboardVisible ? 'w-1/2' : 'w-0 overflow-hidden'}>
+            <T9Keyboard
+              onDigit={handleDigit}
+              onBackspace={handleBackspace}
+              onClear={handleClear}
+            />
+          </div>
         </div>
       </div>
 

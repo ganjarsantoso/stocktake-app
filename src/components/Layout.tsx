@@ -200,9 +200,16 @@ export default function Layout() {
               </svg>
             </button>
             <span className="text-sm font-semibold md:hidden">StockTake</span>
+            {activeDataset && (
+              <span className="text-xs text-muted ml-1 hidden sm:inline">
+                / {activeDataset.name}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
             <button
               onPointerDown={() => toggleTheme()}
-              className="p-1.5 rounded-lg text-muted hover:text-white hover:bg-surface-lighter transition-colors hidden sm:flex"
+              className="p-1.5 rounded-lg text-muted hover:text-white hover:bg-surface-lighter transition-colors"
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {theme === 'dark' ? (
@@ -223,8 +230,6 @@ export default function Layout() {
                 </svg>
               )}
             </button>
-          </div>
-          <div className="flex items-center gap-1.5">
             {isDashboard && (
               <button
                 onPointerDown={() => setKeyboardVisible(!keyboardVisible)}

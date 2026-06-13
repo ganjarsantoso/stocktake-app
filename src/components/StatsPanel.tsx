@@ -2,14 +2,23 @@ import ProgressRing from './ProgressRing'
 import { useAppStore } from '../stores/appStore'
 import { useAuthStore } from '../stores/authStore'
 
-export default function StatsPanel() {
+interface Props {
+  loading?: boolean
+}
+
+export default function StatsPanel({ loading }: Props) {
   const stats = useAppStore((s) => s.stats)
   const user = useAuthStore((s) => s.user)
   const progress = stats.totalItems > 0 ? (stats.foundItems / stats.totalItems) * 100 : 0
   const userCount = stats.perUser[user?.display_name || ''] || 0
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 relative">
+      {loading && (
+        <div className="absolute inset-0 z-10 bg-surface-light/60 rounded-2xl flex items-center justify-center">
+          <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
       {/* Progress Ring */}
       <div className="flex justify-center">
         <ProgressRing progress={progress} size={100} strokeWidth={6} />

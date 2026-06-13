@@ -132,7 +132,7 @@ const SSCCInput = forwardRef<SSCCInputHandle, Props>(({ onResult, keyboardActive
           batch: item.batch,
           is_manual: false,
         }
-        const { error } = await offlineInsert('found_logs', payload)
+        const { error, data: newLog } = await offlineInsert('found_logs', payload)
 
         if (error) {
           if (error.message?.includes('already') || error.message?.includes('duplicate')) {
@@ -145,7 +145,7 @@ const SSCCInput = forwardRef<SSCCInputHandle, Props>(({ onResult, keyboardActive
         setStatus('found')
         setCandidates([])
         setMessage(`Found: ${item.material_no}`)
-        onResult({ status: 'found', item })
+        onResult({ status: 'found', item, newLogId: newLog?.id })
 
         setTimeout(() => {
           setDigits('')
@@ -212,13 +212,13 @@ const SSCCInput = forwardRef<SSCCInputHandle, Props>(({ onResult, keyboardActive
       batch: item.batch,
       is_manual: false,
     }
-    const { error } = await offlineInsert('found_logs', payload)
+    const { error, data: newLog } = await offlineInsert('found_logs', payload)
 
     if (!error) {
       setStatus('found')
       setCandidates([])
       setMessage(`Found: ${item.material_no}`)
-      onResult({ status: 'found', item })
+      onResult({ status: 'found', item, newLogId: newLog?.id })
 
       setTimeout(() => {
         setDigits('')
@@ -299,12 +299,12 @@ const SSCCInput = forwardRef<SSCCInputHandle, Props>(({ onResult, keyboardActive
       batch: item.batch,
       is_manual: true,
     }
-    await offlineInsert('found_logs', payload)
+    const { data: newLog } = await offlineInsert('found_logs', payload)
 
     setManualSubmitting(false)
     setStatus('found')
     setMessage(`Added: ${item.material_no}`)
-    onResult({ status: 'found', item })
+    onResult({ status: 'found', item, newLogId: newLog?.id })
 
     setTimeout(() => {
       setDigits('')

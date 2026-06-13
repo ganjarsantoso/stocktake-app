@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '../stores/appStore'
 import { useThemeStore } from '../stores/themeStore'
+import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
 import { syncQueue, getQueueSize } from '../lib/offline'
 import SSCCInput from '../components/SSCCInput'
@@ -16,30 +17,45 @@ export default function DashboardPage() {
   const [inputResult, setInputResult] = useState<SearchResult | null>(null)
   const [lastFoundItem, setLastFoundItem] = useState<Item | null>(null)
   const [lastFoundByName, setLastFoundByName] = useState<string | undefined>(undefined)
+  const [lastFoundLogId, setLastFoundLogId] = useState<string | null>(null)
+  const [lastFoundByUserId, setLastFoundByUserId] = useState<string | null>(null)
   const [online, setOnline] = useState(navigator.onLine)
   const [pendingCount, setPendingCount] = useState(getQueueSize())
+  const [statsLoading, setStatsLoading] = useState(false)
   const activeDataset = useAppStore((s) => s.activeDataset)
   const datasets = useAppStore((s) => s.datasets)
   const setActiveDataset = useAppStore((s) => s.setActiveDataset)
   const setDatasets = useAppStore((s) => s.setDatasets)
   const setStats = useAppStore((s) => s.setStats)
   const keyboardVisible = useThemeStore((s) => s.keyboardVisible)
+  const user = useAuthStore((s) => s.user)
   const inputRef = useRef<SSCCInputHandle>(null)
   const pendingInterval = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const loadingDatasetRef = useRef<string | undefined>(undefined)
 
   // Define loadStats early so effects can reference it
   const loadStats = useCallback(async () => {
     if (!activeDataset) return
 
+    const datasetId = activeDataset.id
+    loadingDatasetRef.current = datasetId
+    setStatsLoading(true)
+
     const { count: total } = await supabase
       .from('items')
       .select('*', { count: 'exact', head: true })
-      .eq('dataset_id', activeDataset.id)
+      .eq('dataset_id', datasetId)
+
+    // Stale query guard: ignore responses for old datasets
+    if (loadingDatasetRef.current !== datasetId) return
 
     const { data: foundLogs } = await supabase
       .from('found_logs')
       .select('found_by_name')
-      .eq('dataset_id', activeDataset.id)
+      .eq('dataset_id', datasetId)
+
+    if (loadingDatasetRef.current !== datasetId) return
 
     const perUser: Record<string, number> = {}
     foundLogs?.forEach((log) => {
@@ -51,6 +67,7 @@ export default function DashboardPage() {
       foundItems: foundLogs?.length || 0,
       perUser,
     })
+    setStatsLoading(false)
   }, [activeDataset, setStats])
 
   // Load datasets
@@ -94,20 +111,24 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!activeDataset) return
 
+    const datasetId = activeDataset.id
+    loadingDatasetRef.current = datasetId
+
     supabase
       .from('found_logs')
       .select('*')
-      .eq('dataset_id', activeDataset.id)
+      .eq('dataset_id', datasetId)
       .order('created_at', { ascending: false })
       .limit(20)
       .then(({ data }) => {
+        if (loadingDatasetRef.current !== datasetId) return
         if (data) {
           useAppStore.getState().setRecentLogs(data)
         }
       })
   }, [activeDataset])
 
-  // Sync offline queue when back online
+  // Sync offline queue when back online + periodic retry
   useEffect(() => {
     const handleOnline = async () => {
       setOnline(true)
@@ -139,10 +160,31 @@ export default function DashboardPage() {
       setPendingCount(getQueueSize())
     }, 5000)
 
+    // Periodic retry every 30s when queue is non-empty
+    syncIntervalRef.current = setInterval(async () => {
+      if (getQueueSize() > 0) {
+        const result = await syncQueue()
+        if (result.synced > 0) {
+          loadStats()
+          if (activeDataset) {
+            const { data } = await supabase
+              .from('found_logs')
+              .select('*')
+              .eq('dataset_id', activeDataset.id)
+              .order('created_at', { ascending: false })
+              .limit(20)
+            if (data) useAppStore.getState().setRecentLogs(data)
+          }
+        }
+        setPendingCount(getQueueSize())
+      }
+    }, 30000)
+
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
       clearInterval(pendingInterval.current)
+      clearInterval(syncIntervalRef.current)
     }
   }, [activeDataset, loadStats])
 
@@ -152,12 +194,16 @@ export default function DashboardPage() {
     if (result.status === 'found' && result.item) {
       setLastFoundItem(result.item)
       setLastFoundByName(undefined)
+      setLastFoundLogId(result.newLogId ?? null)
+      setLastFoundByUserId(user?.id ?? null)
     }
     if (result.status === 'already_found' && result.item) {
       setLastFoundItem(result.item)
       setLastFoundByName(result.existingLog?.found_by_name ?? undefined)
+      setLastFoundLogId(result.existingLog?.id ?? null)
+      setLastFoundByUserId(result.existingLog?.found_by ?? null)
     }
-  }, [])
+  }, [user])
 
   const handleDigit = useCallback((d: string) => {
     inputRef.current?.handleDigit(d)
@@ -239,11 +285,11 @@ export default function DashboardPage() {
         {/* Row 2: Stats + LiveLogs side by side */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-h-0 overflow-hidden">
           <div className="bg-surface-light rounded-2xl border border-border overflow-y-auto p-3">
-            <StatsPanel />
+            <StatsPanel loading={statsLoading} />
           </div>
           <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
             <div className="bg-surface-light rounded-2xl border border-border flex-1 overflow-y-auto p-3 min-h-0">
-              <LiveLogs onRevert={() => setRevertToast(true)} />
+              <LiveLogs />
             </div>
           </div>
         </div>
@@ -251,7 +297,14 @@ export default function DashboardPage() {
         {/* Row 3: FoundItemPanel + T9Keyboard */}
         <div className="shrink-0 flex gap-3">
           <div className={keyboardVisible ? 'w-1/2' : 'w-full'}>
-            <FoundItemPanel item={lastFoundItem} foundByName={lastFoundByName} />
+            <FoundItemPanel
+              item={lastFoundItem}
+              foundByName={lastFoundByName}
+              foundLogId={lastFoundLogId}
+              foundByUserId={lastFoundByUserId}
+              currentUserId={user?.id ?? null}
+              onRevert={(success) => { if (success) setRevertToast(true); setLastFoundLogId(null) }}
+            />
           </div>
           <div className={keyboardVisible ? 'w-1/2' : 'w-0 overflow-hidden'}>
             <T9Keyboard

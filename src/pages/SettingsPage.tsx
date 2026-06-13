@@ -187,8 +187,7 @@ export default function SettingsPage() {
 
       {/* About */}
       <div className="bg-surface-light rounded-2xl p-3 border border-border text-center">
-        <div className="text-xs text-muted">StockTake v1.0.0</div>
-        <div className="text-[11px] text-muted/60 mt-0.5">Real-time multi-user stock counting</div>
+        <div className="text-xs text-muted">StockTake v1.0.0 · © by GS</div>
       </div>
     </div>
   )

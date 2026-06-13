@@ -58,4 +58,5 @@ export interface SearchResult {
   candidates?: Item[]
   existingLog?: FoundLog
   message?: string
+  newLogId?: string
 }

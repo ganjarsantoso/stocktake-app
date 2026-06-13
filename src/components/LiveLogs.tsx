@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '../stores/appStore'
 import { supabase } from '../lib/supabase'
-import { revertFoundLog } from '../lib/revert'
 
 function highlightLast5(unit: string | null) {
   if (!unit || unit.length < 5) return <span>{unit}</span>
@@ -15,16 +14,10 @@ function highlightLast5(unit: string | null) {
   )
 }
 
-interface Props {
-  onRevert?: () => void
-}
-
-export default function LiveLogs({ onRevert }: Props) {
+export default function LiveLogs() {
   const recentLogs = useAppStore((s) => s.recentLogs)
   const prependLog = useAppStore((s) => s.prependLog)
   const setRecentLogs = useAppStore((s) => s.setRecentLogs)
-  const [reverting, setReverting] = useState<string | null>(null)
-  const [confirmId, setConfirmId] = useState<string | null>(null)
   const logsEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -70,31 +63,6 @@ export default function LiveLogs({ onRevert }: Props) {
       supabase.removeChannel(channel)
     }
   }, [prependLog, setRecentLogs])
-
-  async function handleRevert(logId: string) {
-    setConfirmId(null)
-    setReverting(logId)
-
-    // Mark as reverted locally immediately (optimistic)
-    useAppStore.setState((s) => ({
-      recentLogs: s.recentLogs.map((l) =>
-        l.id === logId ? { ...l, reverted_at: new Date().toISOString(), item_id: null } : l
-      ),
-    }))
-
-    const result = await revertFoundLog(logId)
-    if (!result.success) {
-      // Revert failed — restore original state
-      const { data: log } = await supabase.from('found_logs').select('*').eq('id', logId).single()
-      if (log) {
-        useAppStore.setState((s) => ({
-          recentLogs: s.recentLogs.map((l) => (l.id === logId ? { ...log } : l)),
-        }))
-      }
-    }
-    setReverting(null)
-    onRevert?.()
-  }
 
   function timeAgo(t: string) {
     const diff = Date.now() - new Date(t).getTime()
@@ -176,72 +144,12 @@ export default function LiveLogs({ onRevert }: Props) {
                       <span className="text-muted">{timeAgo(log.created_at)}</span>
                     </div>
                   </div>
-
-                  <div className="flex flex-col items-center gap-1 shrink-0 mt-1">
-                    {isReverted ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-negative">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="15" y1="9" x2="9" y2="15" />
-                        <line x1="9" y1="9" x2="15" y2="15" />
-                      </svg>
-                    ) : (
-                      <button
-                        onPointerDown={() => setConfirmId(log.id)}
-                        disabled={reverting === log.id}
-                        className="p-1 rounded text-muted hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-30"
-                        title="Revert (undo found)"
-                      >
-                        {reverting === log.id ? (
-                          <span className="w-3 h-3 border-2 border-negative border-t-transparent rounded-full animate-spin block" />
-                        ) : (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
-                            <polyline points="1 4 1 10 7 10" />
-                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                          </svg>
-                        )}
-                      </button>
-                    )}
-                  </div>
                 </motion.div>
               )
             })
           )}
         </AnimatePresence>
       </div>
-
-      {/* Confirmation dialog */}
-      {confirmId && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onPointerDown={() => setConfirmId(null)}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-surface border border-border rounded-2xl p-5 mx-4 max-w-sm w-full shadow-2xl"
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-sm font-bold text-white mb-2">Revert this item?</h3>
-            <p className="text-xs text-muted mb-5">
-              This will mark the item as not found. It can be re-scanned afterward.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                onPointerDown={() => setConfirmId(null)}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-muted bg-surface-lighter border border-border hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onPointerDown={() => handleRevert(confirmId)}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-white bg-negative hover:bg-negative/90 transition-colors"
-              >
-                Yes, Revert
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   )
 }

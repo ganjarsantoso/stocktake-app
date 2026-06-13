@@ -39,10 +39,10 @@ export function isOnline(): boolean {
 export async function offlineInsert(
   table: string,
   payload: Record<string, any>
-): Promise<{ error: any | null }> {
+): Promise<{ error: any | null; data?: any }> {
   if (navigator.onLine) {
-    const { error } = await supabase.from(table).insert(payload)
-    return { error }
+    const { data, error } = await supabase.from(table).insert(payload).select()
+    return { error, data: data?.[0] }
   }
 
   // Offline: queue the operation
@@ -56,7 +56,7 @@ export async function offlineInsert(
   const queue = getQueue()
   queue.push(op)
   saveQueue(queue)
-  return { error: null }
+  return { error: null, data: null }
 }
 
 /** Queue an UPDATE for replay when back online */

@@ -250,9 +250,6 @@ export default function Layout() {
                 </svg>
               </button>
             )}
-            <span className="text-[11px] text-muted hidden sm:inline">
-              {activeDataset?.name || 'No dataset'}
-            </span>
             <span className="w-7 h-7 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium md:hidden">
               {user?.display_name?.charAt(0).toUpperCase() || '?'}
             </span>

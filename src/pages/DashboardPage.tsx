@@ -23,7 +23,6 @@ export default function DashboardPage() {
   const [pendingCount, setPendingCount] = useState(getQueueSize())
   const [statsLoading, setStatsLoading] = useState(false)
   const activeDataset = useAppStore((s) => s.activeDataset)
-  const datasets = useAppStore((s) => s.datasets)
   const setActiveDataset = useAppStore((s) => s.setActiveDataset)
   const setDatasets = useAppStore((s) => s.setDatasets)
   const setStats = useAppStore((s) => s.setStats)
@@ -254,23 +253,6 @@ export default function DashboardPage() {
         {online && pendingCount > 0 && (
           <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-positive/15 border border-positive/30 text-xs">
             <span className="text-positive font-medium">Syncing {pendingCount} queued changes...</span>
-          </div>
-        )}
-        {datasets.length > 1 && (
-          <div className="flex gap-1 overflow-x-auto pb-1">
-            {datasets.map((ds) => (
-              <button
-                key={ds.id}
-                onPointerDown={() => setActiveDataset(ds)}
-                className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  ds.id === activeDataset.id
-                    ? 'bg-accent text-surface'
-                    : 'bg-surface-lighter text-muted'
-                }`}
-              >
-                {ds.name}
-              </button>
-            ))}
           </div>
         )}
       </div>

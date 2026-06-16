@@ -11,3 +11,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Expose for E2E tests
+if (import.meta.env.DEV || import.meta.env.PROD) {
+  ;(globalThis as any).__supabase = supabase
+}

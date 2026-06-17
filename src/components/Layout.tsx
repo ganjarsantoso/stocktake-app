@@ -3,6 +3,8 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
 import { useThemeStore } from '../stores/themeStore'
+import { useFoundLogsSubscription } from '../hooks/useFoundLogsSubscription'
+import MiniLiveLog from './MiniLiveLog'
 
 const navItems = [
   {
@@ -75,6 +77,8 @@ export default function Layout() {
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
   const location = useLocation()
   const isDashboard = location.pathname === '/'
+
+  useFoundLogsSubscription()
 
   const toggleCollapse = () => {
     setSidebarCollapsed((prev: boolean) => {
@@ -205,6 +209,9 @@ export default function Layout() {
                 / {activeDataset.name}
               </span>
             )}
+          </div>
+          <div className="hidden md:flex flex-1 min-w-0 px-3">
+            <MiniLiveLog />
           </div>
           <div className="flex items-center gap-1.5">
             <button

@@ -42,6 +42,7 @@ All three migrations must run on a fresh project:
 2. `002_soft_revert.sql`
 3. `003_add_found_logs_update_policy.sql`
 4. `004_add_datasets_update_delete_policies.sql`
+5. `005_add_found_logs_quantity.sql`
 
 The app checks on startup that the DB tables exist; if not, shows a setup screen.
 

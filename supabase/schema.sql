@@ -107,6 +107,7 @@ CREATE TABLE found_logs (
   storage_bin TEXT,
   batch TEXT,
   is_manual BOOLEAN DEFAULT false,
+  quantity NUMERIC DEFAULT 0,
   client_created_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   reverted_at TIMESTAMPTZ

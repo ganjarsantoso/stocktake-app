@@ -130,6 +130,7 @@ const SSCCInput = forwardRef<SSCCInputHandle, Props>(({ onResult, keyboardActive
           storage_unit: item.storage_unit,
           storage_bin: item.storage_bin,
           batch: item.batch,
+          quantity: item.quantity,
           is_manual: false,
         }
         const { error, data: newLog } = await offlineInsert('found_logs', payload)
@@ -210,6 +211,7 @@ const SSCCInput = forwardRef<SSCCInputHandle, Props>(({ onResult, keyboardActive
       storage_unit: item.storage_unit,
       storage_bin: item.storage_bin,
       batch: item.batch,
+      quantity: item.quantity,
       is_manual: false,
     }
     const { error, data: newLog } = await offlineInsert('found_logs', payload)
@@ -297,6 +299,7 @@ const SSCCInput = forwardRef<SSCCInputHandle, Props>(({ onResult, keyboardActive
       storage_unit: item.storage_unit,
       storage_bin: item.storage_bin,
       batch: item.batch,
+      quantity: item.quantity,
       is_manual: true,
     }
     const { data: newLog } = await offlineInsert('found_logs', payload)

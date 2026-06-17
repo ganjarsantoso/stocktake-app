@@ -42,6 +42,7 @@ export interface FoundLog {
   storage_bin: string | null
   batch: string | null
   is_manual?: boolean
+  quantity?: number
   reverted_at?: string | null
   created_at: string
 }

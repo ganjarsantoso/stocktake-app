@@ -62,36 +62,36 @@ export default function LiveLogs() {
                   }`} />
 
                   <div className="flex-1 min-w-0 space-y-0.5">
-                    {/* Line 1: identity */}
+                    {/* Line 1: storage unit + badges */}
                     <div className="flex items-center gap-1.5 text-xs min-w-0">
                       <span className={`font-mono font-semibold shrink-0 ${isReverted ? 'text-muted line-through' : 'text-white'}`}>
                         {highlightLast5(log.storage_unit)}
                       </span>
-                      <span className="text-muted shrink-0">·</span>
-                      <span className={`truncate ${isReverted ? 'text-muted line-through' : 'text-white'}`}>
-                        {log.material_no}
-                      </span>
-                      {log.material_description && (
-                        <span className="text-muted truncate hidden sm:inline">— {log.material_description}</span>
-                      )}
-                    </div>
-
-                    {/* Line 2: metadata badges */}
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted flex-wrap">
                       {isReverted ? (
-                        <span className="text-negative font-medium bg-negative/10 px-1.5 py-0.5 rounded">Reverted</span>
+                        <span className="text-[10px] text-negative font-medium bg-negative/10 px-1.5 py-0.5 rounded shrink-0">Reverted</span>
                       ) : (
                         <>
                           {log.storage_bin && (
-                            <span className="bg-surface-lighter px-1.5 py-0.5 rounded">{log.storage_bin}</span>
+                            <span className="text-[10px] bg-surface-lighter px-1.5 py-0.5 rounded shrink-0">{log.storage_bin}</span>
                           )}
                           {log.batch && (
-                            <span className="bg-surface-lighter px-1.5 py-0.5 rounded">Batch: {log.batch}</span>
+                            <span className="text-[10px] bg-surface-lighter px-1.5 py-0.5 rounded shrink-0">Batch: {log.batch}</span>
                           )}
                           {log.is_manual && (
-                            <span className="text-warning">(manual)</span>
+                            <span className="text-warning text-[10px] shrink-0">(manual)</span>
                           )}
                         </>
+                      )}
+                    </div>
+
+                    {/* Line 2: material info */}
+                    <div className={`text-xs truncate ${isReverted ? 'text-muted line-through' : 'text-white'}`}>
+                      {log.material_no}
+                      {log.material_description && (
+                        <span className="text-muted"> — {log.material_description}</span>
+                      )}
+                      {!!log.quantity && (
+                        <span className="text-muted"> · Qty: {log.quantity}</span>
                       )}
                     </div>
 

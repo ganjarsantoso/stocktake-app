@@ -130,6 +130,7 @@ export default function InventoryPage() {
           storage_unit: item.storage_unit,
           storage_bin: item.storage_bin,
           batch: item.batch,
+          quantity: item.quantity,
           is_manual: false,
         })
       }

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../stores/appStore'
 
 function timeAgo(t: string) {
@@ -16,13 +17,30 @@ function last5(unit: string | null) {
 export default function MiniLiveLog() {
   const recentLogs = useAppStore((s) => s.recentLogs)
   const log = recentLogs[0]
+  const prevIdRef = useRef<string | undefined>(undefined)
+  const [flash, setFlash] = useState(false)
+
+  useEffect(() => {
+    if (log && log.id !== prevIdRef.current) {
+      prevIdRef.current = log.id
+      setFlash(true)
+      const t = setTimeout(() => setFlash(false), 2000)
+      return () => clearTimeout(t)
+    }
+  }, [log?.id])
 
   if (!log) return null
 
   const isReverted = !!log.reverted_at
 
   return (
-    <div className="flex items-center gap-1.5 truncate text-[10px] leading-none">
+    <div
+      className={`flex items-center gap-1.5 truncate text-[10px] leading-none px-2 py-0.5 rounded-lg border transition-all duration-500 ${
+        flash
+          ? 'border-accent shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+          : 'border-border'
+      }`}
+    >
       <span
         className={`w-1.5 h-1.5 rounded-full shrink-0 ${
           isReverted ? 'bg-negative' : 'bg-accent'

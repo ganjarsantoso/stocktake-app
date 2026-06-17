@@ -210,10 +210,10 @@ export default function Layout() {
               </span>
             )}
           </div>
-          <div className="hidden md:flex flex-1 min-w-0 px-3">
-            <MiniLiveLog />
-          </div>
           <div className="flex items-center gap-1.5">
+            <div className="hidden md:block">
+              <MiniLiveLog />
+            </div>
             <button
               onPointerDown={() => toggleTheme()}
               className="p-1.5 rounded-lg text-muted hover:text-white hover:bg-surface-lighter transition-colors"

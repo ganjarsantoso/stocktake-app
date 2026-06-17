@@ -244,6 +244,11 @@ export default function HistoryPage() {
                     {log.batch && !isReverted && (
                       <span className="bg-surface-lighter px-1.5 py-0.5 rounded">Batch: {log.batch}</span>
                     )}
+                    {!!log.quantity && !isReverted && (
+                      <span className="bg-surface-lighter px-1.5 py-0.5 rounded">
+                        Qty: {log.quantity}{log.unit_of_quantity ? ` ${log.unit_of_quantity}` : ''}
+                      </span>
+                    )}
                   </div>
 
                   {/* Found by + timestamp + revert time */}

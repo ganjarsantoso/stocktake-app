@@ -118,7 +118,7 @@ export default function DashboardPage() {
       .select('*')
       .eq('dataset_id', datasetId)
       .order('created_at', { ascending: false })
-      .limit(20)
+      .limit(50)
       .then(({ data }) => {
         if (loadingDatasetRef.current !== datasetId) return
         if (data) {
@@ -141,7 +141,7 @@ export default function DashboardPage() {
             .select('*')
             .eq('dataset_id', activeDataset.id)
             .order('created_at', { ascending: false })
-            .limit(20)
+            .limit(50)
           if (data) useAppStore.getState().setRecentLogs(data)
         }
       }
@@ -171,7 +171,7 @@ export default function DashboardPage() {
               .select('*')
               .eq('dataset_id', activeDataset.id)
               .order('created_at', { ascending: false })
-              .limit(20)
+      .limit(50)
             if (data) useAppStore.getState().setRecentLogs(data)
           }
         }

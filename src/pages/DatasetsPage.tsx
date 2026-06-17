@@ -304,17 +304,31 @@ export default function DatasetsPage() {
 
   async function handleRename(datasetId: string, newName: string) {
     if (!newName.trim()) return
-    await supabase.from('datasets').update({ name: newName.trim() }).eq('id', datasetId)
-    setRenamingId(null)
-    setRenameValue('')
-    loadManagedDatasets()
+    try {
+      const { error } = await supabase.from('datasets').update({ name: newName.trim() }).eq('id', datasetId)
+      if (error) throw error
+      setRenamingId(null)
+      setRenameValue('')
+      loadManagedDatasets()
+    } catch (err: any) {
+      setStatus('error')
+      setStatusMsg(err.message || 'Failed to rename dataset.')
+    }
   }
 
   async function handleDelete(datasetId: string) {
-    await supabase.from('datasets').delete().eq('id', datasetId)
-    setDeletingId(null)
-    if (activeDataset?.id === datasetId) setActiveDataset(null)
-    loadManagedDatasets()
+    try {
+      const { error: logsErr } = await supabase.from('found_logs').delete().eq('dataset_id', datasetId)
+      if (logsErr) throw logsErr
+      const { error: dsErr } = await supabase.from('datasets').delete().eq('id', datasetId)
+      if (dsErr) throw dsErr
+      setDeletingId(null)
+      if (activeDataset?.id === datasetId) setActiveDataset(null)
+      loadManagedDatasets()
+    } catch (err: any) {
+      setStatus('error')
+      setStatusMsg(err.message || 'Failed to delete dataset.')
+    }
   }
 
   useEffect(() => {

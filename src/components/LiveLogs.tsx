@@ -86,7 +86,7 @@ export default function LiveLogs() {
               No items found yet. Start scanning!
             </div>
           ) : (
-            recentLogs.slice(0, 20).map((log) => {
+            recentLogs.slice(0, 50).map((log) => {
               const isReverted = !!log.reverted_at
               return (
                 <motion.div
@@ -96,7 +96,7 @@ export default function LiveLogs() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8, x: 100 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  className={`flex items-start gap-2 px-3 py-2.5 rounded-xl bg-surface-lighter/80 border ${
+                  className={`flex items-start gap-2 px-3 py-1.5 rounded-xl bg-surface-lighter/80 border ${
                     isReverted
                       ? 'border-negative/20 opacity-50'
                       : 'border-border'

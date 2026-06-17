@@ -25,7 +25,7 @@ export default function StatsPanel({ loading }: Props) {
       </div>
 
       {/* Counts */}
-      <div className="grid grid-cols-3 gap-2 text-center">
+      <div className="grid grid-cols-4 gap-2 text-center">
         <div className="bg-surface-lighter rounded-xl p-2">
           <div className="text-lg font-bold">{stats.totalItems}</div>
           <div className="text-[10px] text-muted">Total</div>
@@ -33,6 +33,10 @@ export default function StatsPanel({ loading }: Props) {
         <div className="bg-surface-lighter rounded-xl p-2">
           <div className="text-lg font-bold text-positive">{stats.foundItems}</div>
           <div className="text-[10px] text-muted">Found</div>
+        </div>
+        <div className="bg-surface-lighter rounded-xl p-2">
+          <div className="text-lg font-bold text-accent">{userCount}</div>
+          <div className="text-[10px] text-muted">Your count</div>
         </div>
         <div className="bg-surface-lighter rounded-xl p-2">
           <div className="text-lg font-bold text-warning">{stats.totalItems - stats.foundItems}</div>
@@ -58,12 +62,6 @@ export default function StatsPanel({ loading }: Props) {
             </div>
           ))
         )}
-      </div>
-
-      {/* Your contribution */}
-      <div className="bg-surface-lighter rounded-xl p-2.5 text-center">
-        <div className="text-[11px] text-muted">Your count</div>
-        <div className="text-xl font-bold text-accent">{userCount}</div>
       </div>
     </div>
   )

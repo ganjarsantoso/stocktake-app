@@ -53,6 +53,17 @@ CREATE POLICY "Datasets can be created by authenticated"
   TO authenticated
   WITH CHECK (true);
 
+CREATE POLICY "Datasets can be updated by authenticated"
+  ON datasets FOR UPDATE
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Datasets can be deleted by authenticated"
+  ON datasets FOR DELETE
+  TO authenticated
+  USING (true);
+
 -- Items
 CREATE TABLE items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -33,6 +33,7 @@ export default function InventoryPage() {
   ])
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const searchQueryRef = useRef('')
   const user = useAuthStore((s) => s.user)
   const activeDataset = useAppStore((s) => s.activeDataset)
   const datasetId = activeDataset?.id
@@ -90,8 +91,8 @@ export default function InventoryPage() {
     const channel = supabase
       .channel('inventory-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'found_logs', filter: `dataset_id=eq.${datasetId}` }, () => loadItems())
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'found_logs' }, () => loadItems())
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'found_logs' }, () => loadItems())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'found_logs', filter: `dataset_id=eq.${datasetId}` }, () => loadItems())
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'found_logs', filter: `dataset_id=eq.${datasetId}` }, () => loadItems())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [datasetId, loadItems])
@@ -100,34 +101,42 @@ export default function InventoryPage() {
     if (!datasetId || !user || togglingId) return
     setTogglingId(item.id)
 
-    if (item.found_at) {
-      // Optimistic uncheck
-      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, found_by_name: null, found_at: null, found_log_id: null } : i)))
-      setTogglingId(null)
-      if (item.found_log_id) {
-        await revertFoundLog(item.found_log_id)
+    try {
+      if (item.found_at) {
+        const update = (prev: ItemWithStatus[]) => prev.map((i) =>
+          i.id === item.id ? { ...i, found_by_name: null, found_at: null, found_log_id: null } : i
+        )
+        setItems(update)
+        setSearchResults((prev) => prev !== null ? update(prev) : prev)
+        if (item.found_log_id) {
+          await revertFoundLog(item.found_log_id)
+        } else {
+          await supabase.from('found_logs').delete().eq('item_id', item.id)
+        }
       } else {
-        await supabase.from('found_logs').delete().eq('item_id', item.id)
+        const now = new Date().toISOString()
+        const update = (prev: ItemWithStatus[]) => prev.map((i) =>
+          i.id === item.id ? { ...i, found_by_name: user.display_name, found_at: now } : i
+        )
+        setItems(update)
+        setSearchResults((prev) => prev !== null ? update(prev) : prev)
+        await offlineInsert('found_logs', {
+          item_id: item.id,
+          dataset_id: datasetId,
+          found_by: user.id,
+          found_by_name: user.display_name,
+          material_no: item.material_no,
+          material_description: item.material_description,
+          storage_unit: item.storage_unit,
+          storage_bin: item.storage_bin,
+          batch: item.batch,
+          is_manual: false,
+        })
       }
-    } else {
-      // Optimistic check
-      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, found_by_name: user.display_name, found_at: new Date().toISOString() } : i)))
+    } finally {
       setTogglingId(null)
-      await offlineInsert('found_logs', {
-        item_id: item.id,
-        dataset_id: datasetId,
-        found_by: user.id,
-        found_by_name: user.display_name,
-        material_no: item.material_no,
-        material_description: item.material_description,
-        storage_unit: item.storage_unit,
-        storage_bin: item.storage_bin,
-        batch: item.batch,
-        is_manual: false,
-      })
     }
 
-    // Sync with server in background (real-time also triggers a refresh)
     loadItems()
   }
 
@@ -200,6 +209,7 @@ export default function InventoryPage() {
 
   // Server-side search when query changes
   useEffect(() => {
+    searchQueryRef.current = query
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     if (!query || !datasetId) {
       setSearchResults(null)
@@ -217,7 +227,7 @@ export default function InventoryPage() {
           `storage_unit.ilike.${pattern},material_no.ilike.${pattern},material_description.ilike.${pattern},storage_bin.ilike.${pattern},batch.ilike.${pattern}`
         )
         .limit(200)
-      if (itemsData) {
+      if (itemsData && searchQueryRef.current === query) {
         const { data: logsData } = await supabase
           .from('found_logs')
           .select('id,item_id,found_by_name,created_at')

@@ -91,7 +91,9 @@ export default function LiveLogs() {
                         <span className="text-muted"> — {log.material_description}</span>
                       )}
                       {!!log.quantity && (
-                        <span className="text-muted"> · Qty: {log.quantity}{log.unit_of_quantity ? ` ${log.unit_of_quantity}` : ''}</span>
+                        <span className="bg-surface-lighter text-muted px-1.5 py-0.5 rounded text-[10px] ml-1">
+                          Qty: {log.quantity}{log.unit_of_quantity ? ` ${log.unit_of_quantity}` : ''}
+                        </span>
                       )}
                     </div>
 

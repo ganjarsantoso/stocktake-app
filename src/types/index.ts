@@ -43,6 +43,7 @@ export interface FoundLog {
   batch: string | null
   is_manual?: boolean
   quantity?: number
+  unit_of_quantity?: string | null
   reverted_at?: string | null
   created_at: string
 }

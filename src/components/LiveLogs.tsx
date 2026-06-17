@@ -55,45 +55,47 @@ export default function LiveLogs() {
                       : 'border-border'
                   }`}
                 >
-                  {isReverted ? (
-                    <div className="w-1.5 h-1.5 rounded-full bg-negative mt-2 shrink-0" />
-                  ) : (
-                    <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2 shrink-0 shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
-                  )}
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
+                    isReverted
+                      ? 'bg-negative'
+                      : 'bg-accent shadow-[0_0_6px_rgba(245,158,11,0.6)]'
+                  }" />
 
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-mono font-semibold ${isReverted ? 'text-muted line-through' : 'text-white'}`}>
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    {/* Line 1: identity + badges */}
+                    <div className="flex items-center gap-1.5 text-xs min-w-0">
+                      <span className={`font-mono font-semibold shrink-0 ${isReverted ? 'text-muted line-through' : 'text-white'}`}>
                         {highlightLast5(log.storage_unit)}
                       </span>
-                      {isReverted && (
-                        <span className="text-[10px] text-negative font-medium bg-negative/10 px-1.5 py-0.5 rounded">Reverted</span>
+
+                      {isReverted ? (
+                        <span className="text-[10px] text-negative font-medium bg-negative/10 px-1.5 py-0.5 rounded shrink-0">Reverted</span>
+                      ) : (
+                        <>
+                          <span className="text-muted shrink-0">·</span>
+                          <span className="truncate text-white">{log.material_no}</span>
+                          {log.material_description && (
+                            <span className="text-muted truncate hidden sm:inline">— {log.material_description}</span>
+                          )}
+                          {log.storage_bin && (
+                            <span className="text-[10px] bg-surface-lighter px-1.5 py-0.5 rounded shrink-0 hidden sm:inline">{log.storage_bin}</span>
+                          )}
+                          {log.batch && (
+                            <span className="text-[10px] bg-surface-lighter px-1.5 py-0.5 rounded shrink-0 hidden sm:inline">Batch: {log.batch}</span>
+                          )}
+                          {log.is_manual && (
+                            <span className="text-warning text-[10px] shrink-0">(manual)</span>
+                          )}
+                        </>
                       )}
                     </div>
 
-                    <div className={`text-xs truncate ${isReverted ? 'text-muted line-through' : 'text-white'}`}>
-                      {log.material_no}
-                      {log.material_description && (
-                        <span className="text-muted ml-1">— {log.material_description}</span>
-                      )}
-                      {log.is_manual && !isReverted && (
-                        <span className="text-warning ml-1.5 text-[10px]">(manual)</span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 text-[10px] text-muted">
-                      {log.storage_bin && !isReverted && (
-                        <span className="bg-surface-lighter px-1.5 py-0.5 rounded">{log.storage_bin}</span>
-                      )}
-                      {log.batch && !isReverted && (
-                        <span className="bg-surface-lighter px-1.5 py-0.5 rounded">Batch: {log.batch}</span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 text-[10px]">
+                    {/* Line 2: attribution */}
+                    <div className="flex items-center gap-1.5 text-[10px]">
                       <span className={`font-medium ${isReverted ? 'text-negative' : 'text-accent'}`}>
                         {log.found_by_name}
                       </span>
+                      <span className="text-muted">·</span>
                       <span className="text-muted">{timeAgo(log.created_at)}</span>
                     </div>
                   </div>

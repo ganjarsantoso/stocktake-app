@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
@@ -7,12 +7,73 @@ import { useAuthStore } from '../stores/authStore'
 const BAR_COUNT = 48
 const PARTICLE_COUNT = 16
 
+/* ── Animated SSCC constants ── */
+const FINAL_SSCC = '006141023891205'
+const DIGIT_COUNT = FINAL_SSCC.length
+const FINAL_SSCC_SPACED = FINAL_SSCC.split('').join(' ')
+const SCRAMBLE_FRAMES = 20
+const SCRAMBLE_INTERVAL = 80
+const STABILIZE_INTERVAL = 100
+const HOLD_DURATION = 3000
+
+function randomDigit(): number {
+  return Math.floor(Math.random() * 10)
+}
+function randomSsccSpaced(): string {
+  return Array.from({ length: DIGIT_COUNT }, () => randomDigit()).join(' ')
+}
+
 export default function LoginPage() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const setUser = useAuthStore((s) => s.setUser)
   const navigate = useNavigate()
+
+  const [displaySscc, setDisplaySscc] = useState(randomSsccSpaced)
+  const [scanned, setScanned] = useState(false)
+
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) {
+      setDisplaySscc(FINAL_SSCC_SPACED)
+      setScanned(true)
+      return
+    }
+
+    let active = true
+
+    async function loop() {
+      while (active) {
+        // Phase 1 — scramble all digits
+        for (let i = 0; i < SCRAMBLE_FRAMES; i++) {
+          if (!active) return
+          await new Promise((r) => setTimeout(r, SCRAMBLE_INTERVAL))
+          setDisplaySscc(randomSsccSpaced())
+        }
+
+        // Phase 2 — stabilize left → right
+        for (let i = 0; i < DIGIT_COUNT; i++) {
+          if (!active) return
+          await new Promise((r) => setTimeout(r, STABILIZE_INTERVAL))
+          setDisplaySscc(
+            Array.from({ length: DIGIT_COUNT }, (_, j) =>
+              j <= i ? FINAL_SSCC[j] : randomDigit(),
+            ).join(' '),
+          )
+        }
+
+        // Phase 3 — hold on final code
+        setScanned(true)
+        await new Promise((r) => setTimeout(r, HOLD_DURATION))
+        if (!active) return
+        setScanned(false)
+      }
+    }
+
+    loop()
+    return () => { active = false }
+  }, [])
 
   const bars = useMemo(
     () => Array.from({ length: BAR_COUNT }, (_, i) => (
@@ -115,9 +176,11 @@ export default function LoginPage() {
         </div>
 
         {/* SSCC label */}
-        <div className="login-scan-label">
-          SCANNING
-          <span>SSCC 0 0 6 1 4 1 0 2 3 8 9 1 2 0 5</span>
+        <div className={`login-scan-label${scanned ? ' scanned' : ''}`}>
+          {scanned ? 'SCANNED' : 'SCANNING'}
+          <span style={scanned ? { color: 'var(--color-positive)' } : undefined}>
+            SSCC {displaySscc}
+          </span>
         </div>
 
         {/* Floating particles */}

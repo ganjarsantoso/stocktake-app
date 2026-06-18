@@ -28,3 +28,11 @@ dist-ssr
 .vercel
 test-results/
 playwright-report/
+
+# Tooling / local artifacts
+.codegraph/
+.playwright-mcp/
+design/
+graphify-out/
+login-page-snapshot.md
+login-page.png

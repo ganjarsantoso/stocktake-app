@@ -220,6 +220,7 @@ export default function VariancesPage() {
       const isResolved = formStatus === 'resolved'
       const wasResolved = investigating.status === 'resolved'
 
+      const isNew = !investigating.id
       const payload = {
         dataset_id: activeDataset.id,
         item_id: investigating.item_id,
@@ -231,13 +232,14 @@ export default function VariancesPage() {
         assigned_to: formAssignedTo || null,
         updated_at: now,
         resolved_at: isResolved && !wasResolved ? now : investigating.resolved_at,
+        created_by: isNew ? user?.id : undefined,
       }
 
-      if (investigating.id) {
-        await supabase.from('variances').update(payload).eq('id', investigating.id)
-      } else {
-        payload.created_by = user?.id
+      if (isNew) {
         await supabase.from('variances').insert(payload)
+      } else {
+        const { created_by: _, ...updatePayload } = payload
+        await supabase.from('variances').update(updatePayload).eq('id', investigating.id)
       }
 
       setInvestigating(null)

@@ -9,6 +9,7 @@ import DatasetsPage from './pages/DatasetsPage'
 import HistoryPage from './pages/HistoryPage'
 import SettingsPage from './pages/SettingsPage'
 import InventoryPage from './pages/InventoryPage'
+import VariancesPage from './pages/VariancesPage'
 import Layout from './components/Layout'
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -146,6 +147,7 @@ export default function App() {
         <Route path="/datasets" element={<DatasetsPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/variances" element={<VariancesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>

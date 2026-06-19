@@ -7,6 +7,7 @@ import { revertFoundLog } from '../lib/revert'
 import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
 import type { ItemWithStatus } from '../types'
+import { useNavigate } from 'react-router-dom'
 
 export default function InventoryPage() {
   const [items, setItems] = useState<ItemWithStatus[]>([])
@@ -34,9 +35,15 @@ export default function InventoryPage() {
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const searchQueryRef = useRef('')
+  const [flaggingItem, setFlaggingItem] = useState<ItemWithStatus | null>(null)
+  const [flagging, setFlagging] = useState(false)
+  const [flaggedItemIds, setFlaggedItemIds] = useState<Set<string>>(new Set())
+  const [resolvedItemIds, setResolvedItemIds] = useState<Set<string>>(new Set())
+  const [showBlockedItem, setShowBlockedItem] = useState<ItemWithStatus | null>(null)
   const user = useAuthStore((s) => s.user)
   const activeDataset = useAppStore((s) => s.activeDataset)
   const datasetId = activeDataset?.id
+  const navigate = useNavigate()
 
   const loadItems = useCallback(async () => {
     if (!datasetId) {
@@ -64,6 +71,20 @@ export default function InventoryPage() {
         .is('reverted_at', null)
         .not('item_id', 'is', null)
       const logMap = new Map(logsRes.data?.map((l) => [l.item_id, l]) ?? [])
+
+      const variancesRes = await supabase
+        .from('variances')
+        .select('item_id, status')
+        .eq('dataset_id', datasetId)
+        .not('item_id', 'is', null)
+      const activeSet = new Set(
+        variancesRes.data?.filter((v) => v.status !== 'resolved').map((v) => v.item_id) ?? []
+      )
+      const resolvedSet = new Set(
+        variancesRes.data?.filter((v) => v.status === 'resolved').map((v) => v.item_id) ?? []
+      )
+      setFlaggedItemIds(activeSet)
+      setResolvedItemIds(resolvedSet)
 
       const merged: ItemWithStatus[] = itemsRes.data.map((item) => {
         const log = logMap.get(item.id)
@@ -99,6 +120,10 @@ export default function InventoryPage() {
 
   async function handleToggle(item: ItemWithStatus) {
     if (!datasetId || !user || togglingId) return
+    if (!item.found_at && flaggedItemIds.has(item.id)) {
+      setShowBlockedItem(item)
+      return
+    }
     setTogglingId(item.id)
 
     try {
@@ -426,26 +451,82 @@ export default function InventoryPage() {
                 {/* iPhone-style checkbox */}
                 <button
                   onPointerDown={() => handleToggle(item)}
-                  disabled={isToggling}
-                  className="shrink-0 active:scale-90 transition-transform disabled:opacity-50"
+                  disabled={isToggling || (!isFound && flaggedItemIds.has(item.id))}
+                  className={`shrink-0 active:scale-90 transition-transform disabled:opacity-50 group ${
+                    !isFound && flaggedItemIds.has(item.id) ? 'cursor-not-allowed' : 'cursor-pointer'
+                  }`}
+                  title={
+                    !isFound && flaggedItemIds.has(item.id)
+                      ? 'Under investigation — resolve variance first'
+                      : !isFound && resolvedItemIds.has(item.id)
+                        ? 'Investigation resolved — ready to count'
+                        : undefined
+                  }
                 >
                   <AnimatePresence mode="wait">
                     {isFound ? (
+                      resolvedItemIds.has(item.id) ? (
+                        <motion.div
+                          key="checked-resolved"
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.5, opacity: 0 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                          className="w-6 h-6 rounded-full bg-positive flex items-center justify-center"
+                        >
+                          {isToggling ? (
+                            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="w-3.5 h-3.5">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="checked"
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.5, opacity: 0 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                          className="w-6 h-6 rounded-full bg-accent flex items-center justify-center"
+                        >
+                          {isToggling ? (
+                            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="w-3.5 h-3.5">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </motion.div>
+                      )
+                    ) : flaggedItemIds.has(item.id) ? (
                       <motion.div
-                        key="checked"
+                        key="flagged"
                         initial={{ scale: 0.5, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.5, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                        className="w-6 h-6 rounded-full bg-accent flex items-center justify-center"
+                        className="w-6 h-6 rounded-full bg-warning/20 border-2 border-warning flex items-center justify-center"
                       >
-                        {isToggling ? (
-                          <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="w-3.5 h-3.5">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 text-warning">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                      </motion.div>
+                    ) : resolvedItemIds.has(item.id) ? (
+                      <motion.div
+                        key="resolved-unchecked"
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.5, opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                        className="w-6 h-6 rounded-full bg-positive/10 border-2 border-positive/60 flex items-center justify-center group-hover:bg-positive/20 group-hover:border-positive transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5 text-positive">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
                       </motion.div>
                     ) : (
                       <motion.div
@@ -490,6 +571,40 @@ export default function InventoryPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Flag indicator — right side */}
+                {resolvedItemIds.has(item.id) ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="w-4 h-4 rounded-sm bg-positive/15 border border-positive/40 flex items-center justify-center" title="Investigation resolved">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5 text-positive">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4 text-positive/60">
+                      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                      <line x1="4" y1="22" x2="4" y2="15" />
+                    </svg>
+                  </div>
+                ) : flaggedItemIds.has(item.id) && !isFound ? (
+                    <div className="w-9 h-9 rounded-full bg-warning/15 border border-warning/30 flex items-center justify-center shrink-0" title="Flagged for investigation">
+                      <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" className="w-4 h-4 text-warning">
+                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                        <line x1="4" y1="22" x2="4" y2="15" />
+                      </svg>
+                    </div>
+                  ) : !isFound ? (
+                    <button
+                      onPointerDown={() => setFlaggingItem(item)}
+                      className="w-9 h-9 rounded-full bg-surface-lighter border border-border flex items-center justify-center shrink-0 text-muted hover:text-warning hover:border-warning/50 hover:bg-warning/5 transition-colors active:scale-90"
+                      title="Flag for variance investigation"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                        <line x1="4" y1="22" x2="4" y2="15" />
+                      </svg>
+                    </button>
+                  ) : null
+                }
               </motion.div>
             )
           })}
@@ -594,6 +709,149 @@ export default function InventoryPage() {
           </motion.div>
         </div>
       )}
+
+      {/* Flag for investigation modal */}
+      <AnimatePresence>
+        {flaggingItem && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setFlaggingItem(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-surface border border-border rounded-2xl p-5 max-w-sm w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-sm font-bold mb-3">Flag for Investigation</h3>
+              <div className="bg-surface-light rounded-xl p-3 border border-border mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-warning/15 text-warning">missing</span>
+                  <span className="text-xs font-mono font-semibold text-white">{flaggingItem.storage_unit}</span>
+                </div>
+                <div className="text-xs text-white">
+                  {flaggingItem.material_no}
+                  {flaggingItem.material_description && (
+                    <span className="text-muted ml-1">— {flaggingItem.material_description}</span>
+                  )}
+                </div>
+              </div>
+              <p className="text-[11px] text-muted mb-4">
+                This item is in the dataset but was not found during count. Create a variance investigation to track it.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onPointerDown={() => setFlaggingItem(null)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-medium text-muted bg-surface-lighter border border-border hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!datasetId || !user || !flaggingItem) return
+                    setFlagging(true)
+                    const { error } = await supabase.from('variances').insert({
+                      dataset_id: datasetId,
+                      item_id: flaggingItem.id,
+                      variance_type: 'missing',
+                      status: 'investigating',
+                      created_by: user.id,
+                    })
+                    setFlagging(false)
+                    if (error) {
+                      alert('Failed to create investigation: ' + error.message)
+                      return
+                    }
+                    setFlaggingItem(null)
+                    loadItems()
+                  }}
+                  disabled={flagging}
+                  className="flex-[2] py-2.5 rounded-xl text-xs font-semibold text-surface bg-accent hover:bg-accent/90 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {flagging ? (
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                        <line x1="4" y1="22" x2="4" y2="15" />
+                      </svg>
+                      Flag & Investigate
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Blocked toggle modal */}
+      <AnimatePresence>
+        {showBlockedItem && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setShowBlockedItem(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-surface border border-border rounded-2xl p-5 max-w-sm w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-12 h-12 rounded-full bg-warning/15 flex items-center justify-center mx-auto mb-3">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6 text-warning">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-bold text-center mb-1">Under Investigation</h3>
+              <p className="text-[11px] text-muted text-center mb-4">
+                This item is flagged for a variance investigation. Resolve or delete the investigation in the Variances page before marking it as found.
+              </p>
+              <div className="bg-surface-light rounded-xl p-3 border border-border mb-4 space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted">Storage Unit</span>
+                  <span className="text-white font-mono font-semibold">{showBlockedItem.storage_unit}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted">Material</span>
+                  <span className="text-white">{showBlockedItem.material_no}</span>
+                </div>
+                {showBlockedItem.material_description && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted">Description</span>
+                    <span className="text-white truncate max-w-[200px]">{showBlockedItem.material_description}</span>
+                  </div>
+                )}
+                {showBlockedItem.batch && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted">Batch</span>
+                    <span className="text-white">{showBlockedItem.batch}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowBlockedItem(null)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-medium text-muted bg-surface-lighter border border-border hover:text-white transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => { setShowBlockedItem(null); navigate('/variances') }}
+                  className="flex-[2] py-2.5 rounded-xl text-xs font-semibold text-surface bg-accent hover:bg-accent/90 active:scale-[0.98] transition-all"
+                >
+                  Go to Variances
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -62,3 +62,26 @@ export interface SearchResult {
   message?: string
   newLogId?: string
 }
+
+export interface Variance {
+  id: string
+  dataset_id: string
+  item_id: string | null
+  found_log_id: string | null
+  variance_type: 'missing' | 'extra'
+  status: 'open' | 'investigating' | 'resolved'
+  root_cause: string | null
+  notes: string | null
+  assigned_to: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  resolved_at: string | null
+}
+
+export interface VarianceWithItem extends Variance {
+  item?: Item
+  found_log?: FoundLog
+  assigned_to_name?: string
+  created_by_name?: string
+}

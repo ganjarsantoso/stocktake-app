@@ -467,6 +467,16 @@ export default function VariancesPage() {
                       </div>
                     )}
 
+                    {itemInfo && (
+                      <div className="flex items-center gap-3 text-[10px] text-muted flex-wrap">
+                        {itemInfo.storage_bin && <span>Bin: {itemInfo.storage_bin}</span>}
+                        {itemInfo.batch && <span>Batch: {itemInfo.batch}</span>}
+                        {('quantity' in itemInfo && itemInfo.quantity != null) && (
+                          <span>Qty: {itemInfo.quantity}{'unit_of_quantity' in itemInfo && itemInfo.unit_of_quantity ? ` ${itemInfo.unit_of_quantity}` : ''}</span>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-3 text-[10px] text-muted flex-wrap">
                       {v.root_cause && <span>Root cause: {v.root_cause}</span>}
                       {v.assigned_to_name && <span>Assigned: {v.assigned_to_name}</span>}

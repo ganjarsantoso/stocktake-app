@@ -40,6 +40,13 @@ export default function InventoryPage() {
   const [flaggedItemIds, setFlaggedItemIds] = useState<Set<string>>(new Set())
   const [resolvedItemIds, setResolvedItemIds] = useState<Set<string>>(new Set())
   const [showBlockedItem, setShowBlockedItem] = useState<ItemWithStatus | null>(null)
+  const [showResolvedItem, setShowResolvedItem] = useState<ItemWithStatus | null>(null)
+  const [resolvedVarianceDetails, setResolvedVarianceDetails] = useState<Record<string, {
+    root_cause: string | null
+    notes: string | null
+    assigned_to_name: string | null
+    resolved_at: string | null
+  }>>({})
   const user = useAuthStore((s) => s.user)
   const activeDataset = useAppStore((s) => s.activeDataset)
   const datasetId = activeDataset?.id
@@ -72,19 +79,39 @@ export default function InventoryPage() {
         .not('item_id', 'is', null)
       const logMap = new Map(logsRes.data?.map((l) => [l.item_id, l]) ?? [])
 
-      const variancesRes = await supabase
-        .from('variances')
-        .select('item_id, status')
-        .eq('dataset_id', datasetId)
-        .not('item_id', 'is', null)
+      const [variancesRes, usersRes] = await Promise.all([
+        supabase
+          .from('variances')
+          .select('id, item_id, status, root_cause, notes, assigned_to, resolved_at')
+          .eq('dataset_id', datasetId)
+          .not('item_id', 'is', null),
+        supabase
+          .from('users')
+          .select('id, display_name'),
+      ])
+      const allUsers = usersRes.data ?? []
+      const userMap = new Map(allUsers.map((u) => [u.id, u.display_name]))
+
       const activeSet = new Set(
         variancesRes.data?.filter((v) => v.status !== 'resolved').map((v) => v.item_id) ?? []
       )
       const resolvedSet = new Set(
         variancesRes.data?.filter((v) => v.status === 'resolved').map((v) => v.item_id) ?? []
       )
+      const resolvedDetails: Record<string, { root_cause: string | null; notes: string | null; assigned_to_name: string | null; resolved_at: string | null }> = {}
+      for (const v of variancesRes.data ?? []) {
+        if (v.status === 'resolved' && v.item_id) {
+          resolvedDetails[v.item_id] = {
+            root_cause: v.root_cause,
+            notes: v.notes,
+            assigned_to_name: v.assigned_to ? userMap.get(v.assigned_to) ?? null : null,
+            resolved_at: v.resolved_at,
+          }
+        }
+      }
       setFlaggedItemIds(activeSet)
       setResolvedItemIds(resolvedSet)
+      setResolvedVarianceDetails(resolvedDetails)
 
       const merged: ItemWithStatus[] = itemsRes.data.map((item) => {
         const log = logMap.get(item.id)
@@ -124,6 +151,10 @@ export default function InventoryPage() {
       setShowBlockedItem(item)
       return
     }
+    if (!item.found_at && resolvedItemIds.has(item.id)) {
+      setShowResolvedItem(item)
+      return
+    }
     setTogglingId(item.id)
 
     try {
@@ -160,6 +191,39 @@ export default function InventoryPage() {
           is_manual: false,
         })
       }
+    } finally {
+      setTogglingId(null)
+    }
+
+    loadItems()
+  }
+
+  async function handleQuickCount(item: ItemWithStatus) {
+    setShowResolvedItem(null)
+    if (!datasetId || !user || togglingId) return
+    setTogglingId(item.id)
+
+    try {
+      const now = new Date().toISOString()
+      const update = (prev: ItemWithStatus[]) => prev.map((i) =>
+        i.id === item.id ? { ...i, found_by_name: user.display_name, found_at: now } : i
+      )
+      setItems(update)
+      setSearchResults((prev) => prev !== null ? update(prev) : prev)
+      await offlineInsert('found_logs', {
+        item_id: item.id,
+        dataset_id: datasetId,
+        found_by: user.id,
+        found_by_name: user.display_name,
+        material_no: item.material_no,
+        material_description: item.material_description,
+        storage_unit: item.storage_unit,
+        storage_bin: item.storage_bin,
+        batch: item.batch,
+        quantity: item.quantity,
+        unit_of_quantity: item.unit_of_quantity,
+        is_manual: false,
+      })
     } finally {
       setTogglingId(null)
     }
@@ -846,6 +910,131 @@ export default function InventoryPage() {
                   className="flex-[2] py-2.5 rounded-xl text-xs font-semibold text-surface bg-accent hover:bg-accent/90 active:scale-[0.98] transition-all"
                 >
                   Go to Variances
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Resolved item popup */}
+      <AnimatePresence>
+        {showResolvedItem && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setShowResolvedItem(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-surface border border-border rounded-2xl p-5 max-w-sm w-full shadow-2xl max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="w-12 h-12 rounded-full bg-positive/15 flex items-center justify-center mx-auto mb-3">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6 text-positive">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-bold text-center mb-1">Investigation Resolved</h3>
+              <p className="text-[11px] text-muted text-center mb-4">
+                This item had a variance investigation that was already resolved.
+              </p>
+
+              {/* Resolved status detail */}
+              {resolvedVarianceDetails[showResolvedItem.id] && (
+                <div className="bg-positive/5 border border-positive/20 rounded-xl p-3 mb-4 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-positive font-semibold flex items-center gap-1">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      Resolved
+                    </span>
+                    {resolvedVarianceDetails[showResolvedItem.id].resolved_at && (
+                      <span className="text-muted text-[10px]">
+                        {new Date(resolvedVarianceDetails[showResolvedItem.id].resolved_at!).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  {resolvedVarianceDetails[showResolvedItem.id].root_cause && (
+                    <div>
+                      <span className="text-[10px] text-muted font-medium uppercase tracking-wider">Root Cause</span>
+                      <p className="text-[11px] text-white mt-0.5">{resolvedVarianceDetails[showResolvedItem.id].root_cause}</p>
+                    </div>
+                  )}
+                  {resolvedVarianceDetails[showResolvedItem.id].assigned_to_name && (
+                    <div className="text-[11px] text-muted">
+                      Assigned to: <span className="text-white">{resolvedVarianceDetails[showResolvedItem.id].assigned_to_name}</span>
+                    </div>
+                  )}
+                  {resolvedVarianceDetails[showResolvedItem.id].notes && (
+                    <div>
+                      <span className="text-[10px] text-muted font-medium uppercase tracking-wider">Notes</span>
+                      <p className="text-[11px] text-white mt-0.5 whitespace-pre-wrap">{resolvedVarianceDetails[showResolvedItem.id].notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Item details */}
+              <div className="bg-surface-light rounded-xl p-3 border border-border mb-4 space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted">Storage Unit</span>
+                  <span className="text-white font-mono font-semibold">{showResolvedItem.storage_unit}</span>
+                </div>
+                {showResolvedItem.storage_bin && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted">Storage Bin</span>
+                    <span className="text-white">{showResolvedItem.storage_bin}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted">Material</span>
+                  <span className="text-white">{showResolvedItem.material_no}</span>
+                </div>
+                {showResolvedItem.material_description && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted">Description</span>
+                    <span className="text-white truncate max-w-[200px]">{showResolvedItem.material_description}</span>
+                  </div>
+                )}
+                {showResolvedItem.batch && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted">Batch</span>
+                    <span className="text-white">{showResolvedItem.batch}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted">Quantity</span>
+                  <span className="text-white">{showResolvedItem.quantity ?? '—'} {showResolvedItem.unit_of_quantity ?? ''}</span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowResolvedItem(null)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-medium text-muted bg-surface-lighter border border-border hover:text-white transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => handleQuickCount(showResolvedItem)}
+                  disabled={togglingId === showResolvedItem.id}
+                  className="flex-[2] py-2.5 rounded-xl text-xs font-semibold text-surface bg-accent hover:bg-accent/90 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {togglingId === showResolvedItem.id ? (
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      Count Item
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>
